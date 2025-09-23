@@ -16,6 +16,10 @@
 <script>
 loadMarkdown("README.md", "readmeDiv", "_parent");
 
+let countriesLoaded = false;
+let allCountriesData = [];
+window.selectedCustomCountries = [];
+
 /* Also update home/index.html */
 document.addEventListener('hashChangeEvent', function (elem) {
     console.log("Timeline page detects URL hashChangeEvent");
@@ -39,12 +43,184 @@ document.addEventListener('DOMContentLoaded', () => {
     //alert(hash.scope)
     updateDcidSelectFromSheet(hash.scope);
     
-    document.addEventListener('change', function(event) {
-        if (event.target.name === 'whichLines') {
-          console.log('whichLines changed to ' + event.target.value);
-          refreshTimeline();
+    // document.addEventListener('change', function(event) {
+    //     if (event.target.name === 'whichLines') {
+    //       console.log('whichLines changed to ' + event.target.value);
+    //       refreshTimeline();
+    //     }
+    // });
+
+    // Auto-hide functionality for countries list
+    let hideTimeout;
+    
+    function setupAutoHide() {
+        const countriesList = document.getElementById('countriesList');
+        const whichLinesHolder = document.querySelector('.whichLinesHolder');
+        
+        if (!countriesList || !whichLinesHolder) return;
+        
+        // Clear any existing timeout when mouse enters the area
+        function onMouseEnter() {
+            clearTimeout(hideTimeout);
         }
-    });
+        
+        // Set timeout to hide when mouse leaves the area
+        function onMouseLeave() {
+            hideTimeout = setTimeout(() => {
+                countriesList.classList.remove('visible');
+            }, 500); // 500ms delay - adjust as needed
+        }
+        
+        // Add event listeners to the container that holds both radio buttons and countries list
+        whichLinesHolder.addEventListener('mouseenter', onMouseEnter);
+        whichLinesHolder.addEventListener('mouseleave', onMouseLeave);
+        
+        // Also listen on the countries list itself since it might extend outside the holder
+        countriesList.addEventListener('mouseenter', onMouseEnter);
+        countriesList.addEventListener('mouseleave', onMouseLeave);
+    }
+    
+    // Initialize auto-hide functionality
+    setupAutoHide();
+
+    window.handleCountrySelection = function(radio) {
+        const countriesList = document.getElementById('countriesList');
+        const allCountriesLabel = document.getElementById('all-countries-label');
+        
+        // Clear any pending hide timeout when user interacts
+        clearTimeout(hideTimeout);
+        
+        // Clear custom selections when switching to other modes
+        if (radio.value !== 'showCustom') {
+            window.selectedCustomCountries = [];
+            countriesList.classList.remove('visible');
+        }
+        
+        if (radio.value === 'showAll' && !countriesLoaded) {
+            allCountriesLabel.textContent = 'All (loading...)';
+            countriesList.classList.add('visible');
+            loadAllCountries();
+        } else if (radio.value === 'showAll') {
+            countriesList.classList.add('visible');
+        } 
+        
+        // Always update the selection summary when radio button changes
+        updateSelectionDisplay();
+        
+        refreshTimeline();
+    }
+
+    // Add this new function for loading countries
+    async function loadAllCountries() {
+        if (countriesLoaded) return;
+
+        console.log('loadAllCountries called');
+        
+        try {
+            // Use your existing country fetching logic from getTimelineChart
+            const restResponse = await fetch("https://restcountries.com/v3.1/all?fields=cca2,name");
+            const countriesData = await restResponse.json();
+            const selectedCountries = countriesData.map(country => country.cca2).filter(Boolean);
+            
+            allCountriesData = selectedCountries;
+            countriesLoaded = true;
+            
+            // Update label
+            document.getElementById('all-countries-label').textContent = `All ${allCountriesData.length}`;
+            
+            // Populate list
+            populateCountriesList(countriesData);
+            
+            // Update the selection summary to show the actual count
+            updateSelectionDisplay();
+            
+        } catch (error) {
+            console.error('Error loading countries:', error);
+            document.getElementById('all-countries-label').textContent = 'All Countries (error)';
+            updateSelectionDisplay(); // Update summary even on error
+        }
+    }
+
+    function populateCountriesList(countriesData) {
+        const countriesList = document.getElementById('countriesList');
+        const loadingDiv = document.getElementById('loadingCountries');
+
+        console.log('populateCountriesList called with', countriesData.length, 'countries');
+        
+        loadingDiv.style.display = 'none';
+        
+        countriesData.forEach(country => {
+            console.log('Creating checkbox for:', country.name.common);
+            const countryItem = document.createElement('div');
+            countryItem.className = 'country-item';
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.id = `country-${country.cca2}`;
+            checkbox.onchange = () => toggleCustomCountry(country.cca2, checkbox.checked);
+            
+            const label = document.createElement('label');
+            label.htmlFor = checkbox.id;
+            label.textContent = country.name.common;
+            label.style.cursor = 'pointer';
+            
+            countryItem.appendChild(checkbox);
+            countryItem.appendChild(label);
+            countriesList.appendChild(countryItem);
+        });
+    }
+
+    function toggleCustomCountry(countryCode, isSelected) {
+        if (isSelected) {
+            window.selectedCustomCountries.push(countryCode);
+        } else {
+            window.selectedCustomCountries = window.selectedCustomCountries.filter(c => c !== countryCode);
+        }
+        console.log('selectedCustomCountries:', window.selectedCustomCountries);
+        updateSelectionDisplay();
+        refreshTimeline();
+    }
+    function updateSelectionDisplay() {
+        const selectionSummary = document.getElementById('selectionSummary');
+        
+        // NEVER hide radio buttons - only update the center summary text
+        if (window.selectedCustomCountries && window.selectedCustomCountries.length > 0) {
+            // Show custom countries in CENTER SUMMARY only
+            if (window.selectedCustomCountries.length <= 3) {
+                const countryNames = window.selectedCustomCountries.map(code => {
+                    const checkbox = document.getElementById(`country-${code}`);
+                    return checkbox ? checkbox.nextElementSibling.textContent : code;
+                });
+                selectionSummary.textContent = `${window.selectedCustomCountries.length} Countries: ${countryNames.join(', ')}`;
+            } else {
+                selectionSummary.textContent = `${window.selectedCustomCountries.length} Selected Countries`;
+            }
+            selectionSummary.style.fontStyle = 'italic';
+        } else {
+            // Show radio button selection in CENTER SUMMARY only
+            const selectedRadio = document.querySelector('input[name="whichLines"]:checked');
+            
+            if (selectedRadio?.value === 'showAll') {
+                // For "All Countries", show the actual count if available
+                if (allCountriesData && allCountriesData.length > 0) {
+                    selectionSummary.textContent = `All ${allCountriesData.length} Countries`;
+                } else if (countriesLoaded) {
+                    selectionSummary.textContent = 'All Countries (loaded)';
+                } else {
+                    selectionSummary.textContent = 'All Countries (loading...)';
+                }
+            } else {
+                // For other selections, use the predefined labels
+                const radioLabels = {
+                    'showSelected': '11 Countries', 
+                    'showTop5': 'Top 5 Countries',
+                    'showBottom5': 'Bottom 5 Countries'
+                };
+                selectionSummary.textContent = radioLabels[selectedRadio?.value] || 'Top 5 Countries';
+            }
+            selectionSummary.style.fontStyle = 'normal';
+        }
+    }
 
     document.getElementById('chartVariable').addEventListener('change', (event) => {
         refreshTimeline();
@@ -59,6 +235,26 @@ document.addEventListener('DOMContentLoaded', () => {
         radio.addEventListener('change', () => {
             refreshTimeline(); // This will re-fetch emissions and population and update the chart
         });
+    });
+    document.addEventListener('click', function(event) {
+        console.log('Document clicked, target:', event.target);
+
+        const countriesList = document.getElementById('countriesList');
+        const whichLinesHolder = document.querySelector('.whichLinesHolder');
+
+        console.log('countriesList:', countriesList); 
+        console.log('whichLinesHolder:', whichLinesHolder);
+        console.log('whichLinesHolder contains target:', whichLinesHolder ? whichLinesHolder.contains(event.target) : 'null'); 
+        
+        // Check if click is outside the entire whichLinesHolder area
+        if (whichLinesHolder && !whichLinesHolder.contains(event.target)) {
+            console.log('Hiding countries list');
+            if (countriesList) {
+                countriesList.classList.remove('visible');
+            }
+        } else {
+            console.log('Click was inside whichLinesHolder, not hiding'); 
+        }
     });
 });
 </script>
@@ -197,6 +393,103 @@ document.addEventListener('DOMContentLoaded', () => {
     width: 64px;
 }
 /* Table css end */ 
+
+/* Change whichLinesHolder from horizontal to vertical layout */
+.whichLinesHolder {
+    float: none !important; /* Remove the float */
+    display: flex;
+    flex-direction: column;
+    min-width: 160px;
+    margin-right: 0 !important; /* Remove the margin */
+}
+
+/* Style radio buttons vertically */
+.whichLinesHolder label {
+    display: flex; /* ADD THIS */
+    align-items: center; /* ADD THIS */
+    gap: 6px; /* ADD THIS */
+    margin-bottom: 4px; /* ADD THIS */
+}
+
+/* Flex container for the three sections */
+.controls-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin: 15px 0;
+    gap: 20px;
+}
+
+/* Center summary - simple clean text */
+.selection-summary {
+    flex: 1;
+    text-align: center;
+    margin: 0 !important; /* Remove existing margins */
+    font-size: 15px !important; /* Match radio button font size */
+    font-weight: normal !important; /* Remove bold/heavy weight */
+    font-style: normal !important; /* Remove italic styling */
+    color: #333 !important;
+    padding: 20px 0;
+    font-family: inherit; /* Use same font family as radio buttons */
+}
+
+/* Override existing perCapitaOptions styles */
+#perCapitaOptions {
+    float: none !important; /* Remove the float */
+    display: flex;
+    flex-direction: column;
+    min-width: 100px;
+}
+
+#perCapitaOptions label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+    font-size: 15px;
+    cursor: pointer;
+}
+
+/* Countries list styling */
+.countries-list {
+    display: none;
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid #ccc;
+    background: white;
+    padding: 8px;
+    width: 280px;
+    position: absolute;
+    margin-top: 5px;
+    z-index: 100;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    
+    /* Add smooth transitions */
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    pointer-events: none;
+}
+
+.countries-list.visible {
+    display: block;
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+.country-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 4px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.country-item:hover {
+    background-color: #f5f5f5;
+}
+
 </style>
 
 </head>
@@ -363,21 +656,37 @@ document.addEventListener('DOMContentLoaded', () => {
   
         <br>
         
-        <div class="whichLinesHolder" style="float:left; display: flex;">
-          <label> <input value="showAll" type="radio" name="whichLines" />All &nbsp;</label>
-          <div class="scope-country">
-              <label> <input value="showSelected" type="radio" name="whichLines"/>11 Countries &nbsp;</label>
-          </div>
-          <label> <input value="showTop5" type="radio" name="whichLines" checked />Top 5 &nbsp;</label>
-          <label> <input value="showBottom5" type="radio" name="whichLines" />Bottom 5 &nbsp;</label>
-        </div>
+        <!-- Wrap all three sections in a flex container -->
+        <div class="controls-row">
+            <!-- Left: Country selection -->
+            <div class="whichLinesHolder" style="position: relative;">
+                <div id="radioButtons">
+                <label> <input value="showAll" type="radio" name="whichLines" onchange="handleCountrySelection(this)" />
+                    <span id="all-countries-label">All Countries</span>
+                </label>
+                <div class="scope-country">
+                    <label> <input value="showSelected" type="radio" name="whichLines" onchange="handleCountrySelection(this)"/>11 Countries</label>
+                </div>
+                <label> <input value="showTop5" type="radio" name="whichLines" checked onchange="handleCountrySelection(this)"/>Top 5</label>
+                <label> <input value="showBottom5" type="radio" name="whichLines" onchange="handleCountrySelection(this)"/>Bottom 5</label>
+                </div>
+                
+                <!-- Countries list container -->
+                <div class="countries-list" id="countriesList">
+                    <div id="loadingCountries">Loading countries...</div>
+                </div>
+            </div>
 
-        <div id="perCapitaOptions" style="float:right">
-            <label> <input value="totals" type="radio" name="whichPer" checked  />Totals </label>
-            <label> <input value="percapita" type="radio" name="whichPer" />Per Capita </label>
-            <!--
-            <label> <input value="perarea" type="radio" name="whichPer" />Per Area </label>
-            -->
+            <!-- Center: Summary -->
+            <div class="selection-summary" id="selectionSummary">
+                Top 5 Countries
+            </div>
+
+            <!-- Right: Per capita options -->
+            <div id="perCapitaOptions">
+                <label> <input value="totals" type="radio" name="whichPer" checked  />Totals </label>
+                <label> <input value="percapita" type="radio" name="whichPer" />Per Capita </label>
+            </div>
         </div>
 
         <div id="div1" class="toogleDiv" chart-wrapper>
@@ -429,5 +738,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Show the first div by default on page load
     toggleDivs();
 </script>
+
+
 </body>
 </html>

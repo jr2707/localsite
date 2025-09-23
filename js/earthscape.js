@@ -480,7 +480,26 @@ dataCopy.forEach(location => {
         ? location.valueIn1960 !== null 
         : location.latestValue !== null);
     console.log("validData:",validData)
-    if (showAll === 'showSelected') {
+    if (window.selectedCustomCountries && window.selectedCustomCountries.length > 0) {
+        console.log('>>> ENTERING CUSTOM FILTERING <<<');
+        selectedData = formattedData.filter(location => {
+            const geoId = Object.keys(geoValues).find(id => geoValues[id].name === location.name);
+            if (!geoId) return false;
+            const countryCode3Letter = geoId.includes('country/') ? geoId.replace('country/', '') : geoId;
+            
+            // CONVERT 2-letter codes to 3-letter codes for comparison
+            const selectedCountries3Letter = window.selectedCustomCountries.map(code2 => {
+                // Find the 3-letter code for this 2-letter code
+                const code3 = Object.entries(countryCodeMap).find(([key, value]) => key === code2)?.[1];
+                return code3 || code2; // fallback to original if not found
+            });
+            
+            console.log(`Checking ${location.name}, geoId: ${geoId}, code: ${countryCode3Letter}, selected3Letter: ${selectedCountries3Letter}, included: ${selectedCountries3Letter.includes(countryCode3Letter)}`);
+            return selectedCountries3Letter.includes(countryCode3Letter);
+        });
+        console.log('Custom filtered result count:', selectedData.length);  
+    
+    } else if (showAll === 'showSelected') {
         selectedData = formattedData.filter(location => {
             const geoId = Object.keys(geoValues).find(id => geoValues[id].name === location.name);
             if (!geoId) return false;
@@ -729,6 +748,12 @@ function refreshTimeline() {
 
             let showAll = document.querySelector('input[name="whichLines"]:checked').value;
             if(!showAll) {showAll = 'showTop5';}
+
+            // Check if we have a custom country selection from the legend
+            if (window.isCustomSelection && window.userSelectedCountries && window.userSelectedCountries.length > 0) {
+                showAll = 'showCustom';
+                console.log("Using custom selection mode with countries:", window.userSelectedCountries);
+            }
 
             let entityIdSelect = document.getElementById('entityId');
             let entityId = entityIdSelect.options[entityIdSelect.selectedIndex].value;
