@@ -40,10 +40,16 @@ Used in localsite, modelearth, io, neighborhood, trees
     display: none;
 }
 .main-nav-full {
-  width: 238px !important;
+  width: 252px !important;
   flex-shrink: 0; /* Prevents the column from shrinking below 257px */
 }
+.dark #side-nav-absolute {
+  background-color: #666667;
+}
 @media (max-width: 600px) {
+  .main-nav {
+    width:100% !important;
+  }
   .main-nav-full {
     width:100% !important;
   }
@@ -611,9 +617,9 @@ summary::-webkit-details-marker {
 }
 .contentpadding, #observablehq-center {
   padding-top: 25px;
-  padding-left: 66px; /* avoids overlapping left icon menu */
-  padding-right: 40px;
-  padding-bottom: 45px;
+  padding-left: 30px;
+  padding-right: 30px;
+  padding-bottom: 30px;
 }
 .content a, .contentfull a {
   text-decoration: none;
@@ -694,16 +700,6 @@ summary::-webkit-details-marker {
   max-width: 2000px;
 }
 
-/* caused cropping on /feed 
-.content ul li {
-  margin-left: -10px;
-}
-*/
-@media (max-width: 800px) {
-    .content {
-      padding: 15px 30px 30px 64px;
-    }
-}
 @media (max-width: 1400px) {
   .contentwide {
     max-width: 1350px;
@@ -955,7 +951,7 @@ content .js, pre code, .codetext { /* Prevents .js from impacting js class withi
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
-    background-color: transparent;
+    /* background-color: transparent; */
     border: 1px solid transparent;
     padding: 0.375rem 1rem;
     line-height: 1.5;
@@ -1306,7 +1302,7 @@ content .js, pre code, .codetext { /* Prevents .js from impacting js class withi
   /* white arrow */
   background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="white" d="M7 10l5 5 5-5z"/></svg>') no-repeat right 5px center; /* Custom white arrow */
   background-color: #888;
-  margin-left: 1px; /* prevents border from being cropped when dropdown selected */
+  margin-leftX: 1px; /* prevents border from being cropped when dropdown selected */
 }
 
 .notdark {
@@ -1353,7 +1349,11 @@ content .js, pre code, .codetext { /* Prevents .js from impacting js class withi
   margin-right: 4.5px;
   float: left;
 }
-
+@media (max-width: 600px) {
+  #headerLogo img {
+    max-width: 120px;
+  }
+}
 /* phase out? */
 .logoholder-state {
   background:url(img/logo/georgia-icon-on-gray.png) no-repeat;
@@ -2023,7 +2023,7 @@ h2 .num {
   display: flex;
   flex-direction: column;
   align-self: flex-start;
-  height: calc(100vh - var(--header-height, 0px));
+  /* Optional: Setting height: 100% carries white backround color behind inner side nav in Light mode */
 }
 
 #side-nav.expanded {
@@ -2190,6 +2190,7 @@ body.sidebar-hovered {
 /* Cursor for expanding collapsed sidebar */
 .sidebar.collapsed #side-nav-content {
     cursor: e-resize; /* rightward pointing double-arrow */
+    max-width: 62px;
 }
 .sidebar.collapsed .nav-section .nav-text {
   display: none !important;
@@ -2775,6 +2776,31 @@ body.sidebar-hovered {
     }
 }
 
+.basePanel {
+    background: white;
+    border-radius: 8px;
+}
+.basePanelTop {
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+}
+.dark .basePanel {
+    background: #333;
+}
+.basePanelBackground { /* For control that overlap scrolling list */
+    background: white;
+}
+.dark .basePanelBackground {
+    background: #333;
+}
+.basePanelPadding {
+    padding:15px;
+}
+.basePanelFadeOut {
+    position: relative;
+    mask: linear-gradient(to bottom, rgba(0,0,0,1) 85%, rgba(0,0,0,0) 100%);
+    -webkit-mask: linear-gradient(to bottom, rgba(0,0,0,1) 85%, rgba(0,0,0,0) 100%);
+}
 /* Reopen button for header */
 .nav-reopen-btn {
     vertical-align: middle;

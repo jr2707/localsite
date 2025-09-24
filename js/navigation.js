@@ -1782,6 +1782,10 @@ class StandaloneNavigation {
         document.addEventListener('click', (e) => {
             // Handle the specific close button in #side-nav-content
             if (e.target.closest('#nav-close-btn')) {
+                //alert("hideSidebar() 3");
+                const sideNav = document.getElementById('side-nav');
+                sideNav.classList.remove('expanded');
+                sideNav.classList.add('collapsed');
                 this.hideSidebar();
                 return;
             }
@@ -3470,7 +3474,8 @@ function renderMapShapeAfterPromise(whichmap, hash, geoview, attempts) {
   let stateAbbr = "";
   //alert("hash.state " + hash.state);
   if (hash.state) {
-      stateAbbr = hash.state.split(",")[0].toUpperCase();
+              hash.state = hash.state.split(",").filter(s => s.length === 2).join(","); // Remove if not 2-char, including state=all
+        stateAbbr = hash.state.split(",")[0].toUpperCase();
   }
   if (stateAbbr == "DC") {
     console.log("TOPOJSON IS NOT AVAILABLE FOR DC");
@@ -6237,6 +6242,7 @@ function iNav(set) {
         goHash({"set":set,"indicators":hash.indicators});
     }
 }
+let localsiteTitle = "";
 function applyNavigation() { // Waits for localsite.js 'localStart' variable so local_app path is available.
 
     // To do: fetch the existing background-image.
@@ -6469,7 +6475,7 @@ function applyNavigation() { // Waits for localsite.js 'localStart' variable so 
             if(document.getElementById("main-nav") == null) {
                 let prependTo = "#side-nav-absolute";
                 // Includes listColumnElement with #listcolumn
-                $(prependTo).append("<div id='main-nav' class='main-nav pagecolumn greyDiv noprint sidecolumnLeft pagecolumnLow liteDiv' style='display:none; min-height:300px'><div class='hideSide main-nav-close-btn nav-x' style='position:absolute;right:8px;top:8px;z-index:1;margin-top:0px'>✕</div><div class='navcolumnBar'></div><div class='main-nav-scroll'><div id='navcolumnTitle' class='maincat' style='display:none'></div><div id='listLeft'></div><div id='cloneLeftTarget'></div></div></div>" + listColumnElement); //  listColumnElement will be blank if already applied above.
+                $(prependTo).append("<div id='main-nav' class='main-nav pagecolumn noprint sidecolumnLeft pagecolumnLow liteDiv' style='display:none; min-height:300px'><div class='hideSide main-nav-close-btn nav-x' style='position:absolute;right:8px;top:8px;z-index:1;margin-top:0px'>✕</div><div class='navcolumnBar'></div><div class='main-nav-scroll'><div id='navcolumnTitle' class='maincat' style='display:none'></div><div id='listLeft'></div><div id='cloneLeftTarget'></div></div></div>" + listColumnElement); //  listColumnElement will be blank if already applied above.
                 $("#mapFilters").prependTo($("#main-layout"));
             } else {
                 // TODO - change to fixed when side reaches top of page
@@ -7387,7 +7393,8 @@ function displayBigThumbnails(attempts, activeLayer, layerName, insertInto) {
                 stateAbbr = param.state.split(",")[0].toUpperCase();
             }
             if (hash.state) {
-                stateAbbr = hash.state.split(",")[0].toUpperCase();
+                        hash.state = hash.state.split(",").filter(s => s.length === 2).join(","); // Remove if not 2-char, including state=all
+        stateAbbr = hash.state.split(",")[0].toUpperCase();
             }
             if (stateAbbr && stateAbbr.length > 2) {
                 stateAbbr = stateAbbr.substring(0,2);
@@ -8407,50 +8414,6 @@ function hideScopeOptions(hideScopes) {
     });
 }
 
-function formatCell(input, format) {
-    // If format is none or blank, return input as it is.
-    if (format === 'none' || format === '' || input === '') {
-        return ''
-    }
-    input = parseFloat(input); // Convert input to a number
-    // Format as scientific notation
-    if (format === 'scientific') {
-        return input.toExponential(1);
-    }
-
-    // Format as easy
-    if (input >= 1e12) {
-        // Round to billions
-        return (input / 1e12).toFixed(3) + ' Trillion';
-    } else if (input >= 1e9) {
-        // Round to billions
-        return (input / 1e9).toFixed(1) + ' Billion';
-    } else if (input >= 1e6) {
-        // Round to millions
-        return (input / 1e6).toFixed(1) + ' Million';
-    } else if (input >= 1000) {
-        // Round to thousands
-        return (input / 1000).toFixed(1) + ' K';
-    } else if (input >= 0) {
-        // Round to one decimal. Remove .0
-        //console.log("input:" + input + "-")
-        return input.toFixed(1).replace(/\.0$/, '');
-    } else if (input >= 0.0001) {
-        // Round to one decimal
-        return input.toFixed(4);
-    } else if (input >= -1000) {
-        return (input / 1e3).toFixed(1) + ' K';
-    } else if (input >= -1e9) {
-        // Round to -millions
-        return (input / 1e6).toFixed(1).replace(/\.0$/, '') + ' Million';
-    } else if (input >= -1e12) {
-        // Round to -billions
-        return (input / 1e9).toFixed(1).replace(/\.0$/, '') + ' Billion';
-    } else {
-        // Format with scientific notation with one digit after decimal
-        return input.toExponential(1);
-    }
-}
 if (!onlineApp) {
     console.log("You are currently in offline mode.")
 }
