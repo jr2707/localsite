@@ -156,6 +156,28 @@ document.addEventListener('DOMContentLoaded', () => {
     height: 30px;  /*!important;*/
     padding-top: 6px; /*!important;*/
 }
+
+.country-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 2px 0;
+}
+.country-checkbox-label:hover {
+    opacity: 0.8;
+}
+.country-color-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    border: 1px solid rgba(0,0,0,0.2);
+    flex-shrink: 0;
+}
+.country-checkbox-label input[type="checkbox"] {
+    margin: 0;
+}
 #table-container table tr:first-child th.Topic,
 #table-container table tr:not(:first-child) td.num0 {
     width: 80px;
@@ -372,6 +394,13 @@ document.addEventListener('DOMContentLoaded', () => {
           <label> <input value="showBottom5" type="radio" name="whichLines" />Bottom 5 &nbsp;</label>
         </div>
 
+        <div id="countrySelection" style="margin: 15px 0; padding: 10px; background: #f8f9fa; border-radius: 4px;">
+            <div style="font-size: 12px; color: #666; margin-bottom: 8px;">Select Countries:</div>
+            <div id="countryCheckboxes" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px;"></div>
+            <div id="moreCountriesContainer" style="display: none; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; margin-top: 6px; padding-top: 6px; border-top: 1px solid #ddd;"></div>
+            <a href="#" id="toggleMoreCountries" style="display: none; font-size: 12px; margin-top: 8px; display: inline-block;">+ Show more countries</a>
+        </div>
+
         <div id="perCapitaOptions" style="float:right">
             <label> <input value="totals" type="radio" name="whichPer" checked  />Totals </label>
             <label> <input value="percapita" type="radio" name="whichPer" />Per Capita </label>
@@ -428,6 +457,124 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     // Show the first div by default on page load
     toggleDivs();
+</script>
+<script>
+console.log('Checkbox script loaded');
+
+let originalDatasets = [];
+let attempts = 0;
+let chartCheckInterval = setInterval(() => {
+    attempts++;
+    let chart = (typeof timelineChart !== 'undefined') ? timelineChart : window.timelineChart;
+    
+    if (chart?.data?.datasets) {
+        console.log('✓ Chart found!', chart.data.datasets.length, 'datasets');
+        clearInterval(chartCheckInterval);
+        originalDatasets = JSON.parse(JSON.stringify(chart.data.datasets));
+        initializeCountryCheckboxes(chart);
+    } else if (attempts > 30) {
+        console.error('Chart not found');
+        clearInterval(chartCheckInterval);
+    }
+}, 300);
+
+function initializeCountryCheckboxes(chart) {
+    const datasets = chart.data.datasets;
+    const countries = datasets.map(d => ({ name: d.label, color: d.borderColor }));
+    
+    const initial = countries.slice(0, 12);
+    const remaining = countries.slice(12);
+    
+    renderCheckboxes(initial, 'countryCheckboxes');
+    
+    if (remaining.length > 0) {
+        renderCheckboxes(remaining, 'moreCountriesContainer');
+        document.getElementById('toggleMoreCountries').style.display = 'inline-block';
+    } else {
+        document.getElementById('moreCountriesContainer').innerHTML = '';
+        document.getElementById('toggleMoreCountries').style.display = 'none';
+    }
+}
+
+function renderCheckboxes(countries, containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    countries.forEach(country => {
+        const label = document.createElement('label');
+        label.className = 'country-checkbox-label';
+        
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.value = country.name;
+        checkbox.checked = true;
+        checkbox.addEventListener('change', filterChart);
+        
+        const colorBox = document.createElement('span');
+        colorBox.className = 'country-color-indicator';
+        colorBox.style.backgroundColor = country.color;
+        
+        label.appendChild(checkbox);
+        label.appendChild(colorBox);
+        label.appendChild(document.createTextNode(' ' + country.name));
+        
+        container.appendChild(label);
+    });
+}
+
+function filterChart() {
+    const chart = (typeof timelineChart !== 'undefined') ? timelineChart : window.timelineChart;
+    if (!chart) return;
+    
+    const checkedCountries = Array.from(document.querySelectorAll('.country-checkbox-label input:checked'))
+        .map(cb => cb.value);
+    
+    chart.data.datasets = originalDatasets.filter(d => checkedCountries.includes(d.label));
+    chart.update();
+}
+
+// Listen to radio button changes - wait for chart to actually update
+document.querySelectorAll('input[name="whichLines"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+        const chart = (typeof timelineChart !== 'undefined') ? timelineChart : window.timelineChart;
+        const oldDatasets = chart ? chart.data.datasets.map(d => d.label).join(',') : '';
+        
+        // Poll until chart datasets actually change
+        let checkCount = 0;
+        const checkInterval = setInterval(() => {
+            checkCount++;
+            const currentChart = (typeof timelineChart !== 'undefined') ? timelineChart : window.timelineChart;
+            const newDatasets = currentChart ? currentChart.data.datasets.map(d => d.label).join(',') : '';
+            
+            if (newDatasets !== oldDatasets || checkCount > 20) {
+                clearInterval(checkInterval);
+                if (currentChart?.data?.datasets) {
+                    originalDatasets = JSON.parse(JSON.stringify(currentChart.data.datasets));
+                    initializeCountryCheckboxes(currentChart);
+                }
+            }
+        }, 100);
+    });
+});
+
+// Toggle more countries
+document.addEventListener('DOMContentLoaded', () => {
+    const toggle = document.getElementById('toggleMoreCountries');
+    const container = document.getElementById('moreCountriesContainer');
+    
+    toggle?.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (container.style.display === 'none') {
+            container.style.display = 'grid';
+            toggle.textContent = '− Show fewer countries';
+        } else {
+            container.style.display = 'none';
+            toggle.textContent = '+ Show more countries';
+        }
+    });
+});
 </script>
 </body>
 </html>
